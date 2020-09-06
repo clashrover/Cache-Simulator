@@ -85,6 +85,7 @@ void write_buffer:: push(block* b){
 	if(buffer.size()>=size){
 		clear_buffer();
 	}
+	b->setDirty(0);
 	buffer.push(b);
 }
 
@@ -112,11 +113,13 @@ void write_memory(block* b){
 	for(int i=0;i<mem.size();i++){
 		if(b->getAddress() == mem[i]->getAddress()){
 			mem[i]->setData(b->getData());
+			mem[i]->setDirty(0);
 			x=true;
 			break;
 		}
 	}
 	if(!x){
+		b->setDirty(0);
 		mem.push_back(b);
 	}
 }
@@ -153,7 +156,16 @@ private:
 	queue<block*> l;
 	queue<block*> h;
 	write_buffer* buf;
+	//stats
+	
 public:
+	int Accesses;
+	int Reads; 
+	int Read_Hits;
+	int Read_Misses;
+	int Writes;
+	int Write_Hits;
+	int Write_Misses;
 	cache_set(int s, int bs, int tt, write_buffer* bf){
 		T=tt;
 		bsize=bs;
@@ -170,6 +182,13 @@ public:
 			block* b = new block(bsize, 0, 0, 0,0, T);
 			l.push(b);
 		}
+		Accesses=0;
+		Reads=0; 
+		Read_Hits=0;
+		Read_Misses=0;
+		Writes=0;
+		Write_Hits=0;
+		Write_Misses=0;
 	}
 
 	void pushLow(block* b){
@@ -225,6 +244,8 @@ public:
 
 	void write(int address, int data){
 		// search for address, if there then write
+		Writes++;
+		Accesses++;
 		int i=0;
 		block* ans = NULL;
 		int lsize = l.size();
@@ -245,6 +266,7 @@ public:
 			ans->setDirty(1);
 			// add ans to higher group
 			pushHigh(ans);
+			Write_Hits++;
 			return;
 		}
 		i=0;
@@ -266,11 +288,14 @@ public:
 			h.push(ans);
 			ans->setValid(1);
 			maintainHigh();
+
+			Write_Hits++;
 			return;
 		}
 		// if not there search in buffer
 		// if there make new block and insert to low group
 		// maintain LRU
+		Write_Misses++;
 		ans = buf->search(address);
 		if(ans!=NULL){
 			ans->setData(data); 
@@ -299,6 +324,8 @@ public:
 	}
 
 	block* read(int address){
+		Accesses++;
+		Reads++;
 		int i=0;
 		block* ans = NULL;
 		// check in low group
@@ -317,6 +344,7 @@ public:
 		if(ans!=NULL){
 			// set time of ans to T and promote to high
 			pushHigh(ans);
+			Read_Hits++;
 			return ans;
 		}
 		// check in high group if not found in low
@@ -338,6 +366,7 @@ public:
 			ans->setTime(T+1);
 			h.push(ans);
 			maintainHigh();
+			Read_Hits++;
 			return ans;
 		}
 
@@ -346,6 +375,7 @@ public:
 		// If found then make new block from req returned.
 		// push the block into low using LRU
 		// policy, evicted block goes to buffer if valid and dirty
+		Read_Misses++;
 		ans = buf->search(address);
 		if(ans!=NULL){
 			pushLow(ans);
@@ -404,6 +434,10 @@ private:
     int no_sets;
     vector<cache_set*> arr;
     write_buffer* buf;
+    float HitRatio;
+    int accesses;
+    int reads, read_hits, read_misses;
+    int writes, write_hits, write_misses;
 public:
     cache(int s, int b, int a, int t);
     void write(int address, ll data);
@@ -419,13 +453,17 @@ cache::cache(int s, int b, int a, int time)
     T = time;
     no_sets = s/a;
     buf = new write_buffer(10);  // static size of write buffer 10
-	
+
     for(int i=0;i<size;i++){
     	if(i%a == 0){
     		cache_set* c = new cache_set(n_way, b, T,buf);
     		arr.push_back(c);
     	}
     }
+    HitRatio =0 ;
+    accesses =0;
+    reads =0; read_hits=0; read_misses=0;
+    writes=0; write_hits=0; write_misses=0;
 }
 
 void cache::write(int address, ll data){
@@ -456,11 +494,33 @@ block* cache::read(int address){
 
 void cache :: show(){
 	buf->clear_buffer();
+	HitRatio =0 ;
+    accesses =0;
+    reads =0; read_hits=0; read_misses=0;
+    writes=0; write_hits=0; write_misses=0;
 	cout << "---------------Cache State---------------\n";
 	for(int i=0;i<no_sets;i++){
 		cout << "Set - " << i << endl;
 		arr[i]->show();
+		accesses+= arr[i]->Accesses;
+		reads += arr[i]->Reads;
+		read_hits+= arr[i]->Read_Hits;
+		read_misses+= arr[i]->Read_Misses;
+		writes += arr[i]->Writes;
+		write_hits += arr[i]->Write_Hits;
+		write_misses += arr[i]->Write_Misses;
 	}
+	float HitRatio = ((1.0*(read_hits + write_hits))/(1.0*accesses));
+	cout << "---------------STATISTICS---------------\n";
+	cout << "Hit Ratio   : " << HitRatio << endl;
+	cout << "Accesses    : " << accesses << endl;
+	cout << "No of Read  : " << reads << endl;
+	cout << "Read Hits   : " << read_hits << endl;
+	cout << "Read Misses : " << read_misses << endl;
+	cout << "Writes      : " << writes << endl;
+	cout << "Write Hits  : " << write_hits << endl;
+	cout << "Write Misses: " << write_misses << endl;
+
 }
 
 
@@ -469,7 +529,9 @@ void cache :: show(){
 //----------------------------------------------------------------------------------------
 
 int main(){
-	ifstream infile("input.txt");
+	// ifstream infile("standard_eg.txt");
+	// ifstream infile("small_eg.txt");
+	ifstream infile("full_asso.txt");
 	string line;
 	getline(infile,line);
 	istringstream iss1(line);
