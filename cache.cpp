@@ -240,7 +240,7 @@ public:
 			i++;
 		}
 		if(ans!=NULL){
-			ans->setData(data); ans->setTime(T);
+			ans->setData(data); 
 			ans->setValid(1);
 			ans->setDirty(1);
 			// add ans to higher group
@@ -273,7 +273,7 @@ public:
 		// maintain LRU
 		ans = buf->search(address);
 		if(ans!=NULL){
-			ans->setData(data); ans->setTime(T);
+			ans->setData(data); 
 			ans->setValid(1);
 			ans->setDirty(1);
 			// add to low group
@@ -286,7 +286,7 @@ public:
 		ans = read_memory(address);
 		if(ans!=NULL){
 			// push to low group maintain LRU
-			ans->setData(data); ans->setTime(T);
+			ans->setData(data); 
 			ans->setValid(1);
 			ans->setDirty(1);
 			ans->setSize(bsize);
@@ -315,7 +315,6 @@ public:
 			i++; 
 		}
 		if(ans!=NULL){
-			ans->setTime(T);
 			// set time of ans to T and promote to high
 			pushHigh(ans);
 			return ans;
@@ -349,7 +348,6 @@ public:
 		// policy, evicted block goes to buffer if valid and dirty
 		ans = buf->search(address);
 		if(ans!=NULL){
-			ans->setTime(T);
 			pushLow(ans);
 			// add to low group maintain LRU
 			return ans;
@@ -364,7 +362,6 @@ public:
 			ans->setValid(1);
 			ans->setDirty(0);
 			ans->setSize(bsize);
-			ans->setTime(T);
 			pushLow(ans);
 			// push to low group
 		}else{
